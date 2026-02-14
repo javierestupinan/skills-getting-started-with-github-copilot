@@ -20,11 +20,50 @@ document.addEventListener("DOMContentLoaded", () => {
 
         const spotsLeft = details.max_participants - details.participants.length;
 
+        // Crear lista de participantes
+        let participantsHTML = '';
+        if (details.participants && details.participants.length > 0) {
+          participantsHTML = `<ul class=\"participants-list\">${details.participants.map(p => `
+            <li style=\"list-style:none;display:flex;align-items:center;\">
+              <span style=\"flex:1;\">${p}</span>
+              <button class=\"delete-participant-btn\" title=\"Remove\" data-activity=\"${name}\" data-email=\"${p}\" style=\"background:none;border:none;color:#c62828;font-size:1.2em;cursor:pointer;margin-left:8px;\">✖</button>
+            </li>`).join("")}</ul>`;
+        } else {
+          participantsHTML = '<ul class=\"participants-list\"><li style=\"list-style:none;\"><em>No participants yet</em></li></ul>';
+        }
+  // Delegated event for delete participant
+  document.addEventListener("click", async (event) => {
+    if (event.target.classList.contains("delete-participant-btn")) {
+      const activity = event.target.getAttribute("data-activity");
+      const email = event.target.getAttribute("data-email");
+      if (confirm(`Remove ${email} from ${activity}?`)) {
+        try {
+          const response = await fetch(`/activities/${encodeURIComponent(activity)}/signup?email=${encodeURIComponent(email)}`, {
+            method: "DELETE"
+          });
+          if (response.ok) {
+            // Refresh activities
+            fetchActivities();
+          } else {
+            const result = await response.json();
+            alert(result.detail || "Failed to remove participant.");
+          }
+        } catch (err) {
+          alert("Error removing participant.");
+        }
+      }
+    }
+  });
+
         activityCard.innerHTML = `
           <h4>${name}</h4>
           <p>${details.description}</p>
           <p><strong>Schedule:</strong> ${details.schedule}</p>
           <p><strong>Availability:</strong> ${spotsLeft} spots left</p>
+          <div class="participants-section">
+            <h5>Participants:</h5>
+            ${participantsHTML}
+          </div>
         `;
 
         activitiesList.appendChild(activityCard);
@@ -62,6 +101,8 @@ document.addEventListener("DOMContentLoaded", () => {
         messageDiv.textContent = result.message;
         messageDiv.className = "success";
         signupForm.reset();
+        // Refrescar actividades para mostrar el nuevo participante
+        fetchActivities();
       } else {
         messageDiv.textContent = result.detail || "An error occurred";
         messageDiv.className = "error";
